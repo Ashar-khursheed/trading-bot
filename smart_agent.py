@@ -24,7 +24,10 @@ import sys
 import io
 import threading
 import numpy as np
-import winsound
+try:
+    import winsound
+except ImportError:
+    winsound = None
 from typing import Optional
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
@@ -68,30 +71,15 @@ def alert_sound(alert_type: str):
             "STARTUP": [(600,150),(800,150),(1000,150),(1200,300)],
             "JARVIS":  [(1000,100),(1200,100)],
         }
-        for freq, dur in sounds.get(alert_type, []):
-            winsound.Beep(freq, dur)
+        if winsound:
+            for freq, dur in sounds.get(alert_type, []):
+                winsound.Beep(freq, dur)
     except Exception:
         pass
 
 def desktop_notify(title: str, message: str):
-    try:
-        import subprocess
-        title = title.replace("'", "")
-        message = message.replace("'", "")
-        ps = f"""
-Add-Type -AssemblyName System.Windows.Forms
-$n = New-Object System.Windows.Forms.NotifyIcon
-$n.Icon = [System.Drawing.SystemIcons]::Information
-$n.Visible = $true
-$n.ShowBalloonTip(8000, '{title}', '{message}', [System.Windows.Forms.ToolTipIcon]::None)
-Start-Sleep -Seconds 9; $n.Dispose()
-"""
-        subprocess.Popen(
-            ["powershell", "-WindowStyle", "Hidden", "-Command", ps],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        pass
+    """Notifications are disabled on Linux server."""
+    pass
 
 
 # ══════════════════════════════════════════════════════════════
