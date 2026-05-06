@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binance Live · AI Signals v3 — Real TA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0c10;
+    --bg2:      #111318;
+    --bg3:      #181b22;
+    --border:   #1f2430;
+    --border2:  #2a3042;
+    --text1:    #e8ecf4;
+    --text2:    #8a93a8;
+    --text3:    #4a5568;
+    --green:    #00d897;
+    --green-bg: rgba(0,216,151,0.08);
+    --green-dim:#0d6b3f;
+    --red:      #ff4d4d;
+    --red-bg:   rgba(255,77,77,0.08);
+    --red-dim:  #8b1a1a;
+    --orange:   #f5a623;
+    --orange-bg:rgba(245,166,35,0.08);
+    --blue:     #4d8ff5;
+    --blue-bg:  rgba(77,143,245,0.08);
+    --font-mono:'IBM Plex Mono', monospace;
+    --font-sans:'IBM Plex Sans', sans-serif;
+    --radius:   6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); }
+  body { font-family: var(--font-sans); background: var(--bg); color: var(--text1); min-height: 100vh; }
+
+  .app { max-width: 1400px; margin: 0 auto; padding: 1.25rem 1.5rem; }
+
+  /* Header */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+  .title { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text1); letter-spacing: 0.5px; }
+  .subtitle { font-size: 11px; color: var(--text2); margin-top: 2px; letter-spacing: 0.3px; }
+  .header-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .last-update { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+
+  /* Loading overlay */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(10,12,16,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 16px; }
+  .loading-overlay.hidden { display: none; }
+  .loading-spinner { width: 32px; height: 32px; border: 2px solid var(--border2); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: var(--font-mono); font-size: 12px; color: var(--text2); }
+  .loading-progress { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+
+  /* Sync badge */
+  .sync-badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; background: var(--green-bg); border: 1px solid var(--green-dim); color: var(--green); }
+
+  /* Market Bar */
+  .market-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .mbar-pill { font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: 3px; background: var(--bg2); border: 1px solid var(--border); color: var(--text2); white-space: nowrap; }
+  .mbar-pill.green  { color: var(--green);  border-color: var(--green-dim); background: var(--green-bg); }
+  .mbar-pill.red    { color: var(--red);    border-color: var(--red-dim);   background: var(--red-bg); }
+  .mbar-pill.blue   { color: var(--blue);   border-color: rgba(77,143,245,.3); background: var(--blue-bg); }
+  .mbar-pill.orange { color: var(--orange); border-color: rgba(245,166,35,.3); background: var(--orange-bg); }
+
+  /* Controls */
+  .controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .filter-btn { font-size: 11px; font-family: var(--font-mono); padding: 4px 11px; border-radius: var(--radius); border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--border2); color: var(--text1); }
+  .filter-btn.active { background: var(--bg3); border-color: var(--border2); color: var(--text1); }
+  .filter-btn.buy-active  { background: var(--green-bg); border-color: var(--green-dim); color: var(--green); }
+  .filter-btn.sell-active { background: var(--red-bg);   border-color: var(--red-dim);   color: var(--red); }
+  .sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+  .refresh-btn { margin-left: auto; font-size: 11px; font-family: var(--font-mono); padding: 4px 12px; border-radius: var(--radius); border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .refresh-btn:hover { color: var(--text1); border-color: var(--text3); }
+  .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Coin Grid */
+  .coin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin-bottom: 1.25rem; }
+  .coin-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; cursor: pointer; transition: border-color 0.15s, background 0.15s; position: relative; overflow: hidden; }
+  .coin-card:hover { border-color: var(--border2); background: var(--bg3); }
+  .coin-card.selected { border-color: var(--blue); background: rgba(77,143,245,0.04); }
+  .coin-card.signal-buy  { border-left: 2px solid var(--green); }
+  .coin-card.signal-sell { border-left: 2px solid var(--red); }
+  .coin-card.signal-hold { border-left: 2px solid var(--orange); }
+  .coin-card.loading-card { opacity: 0.5; }
+
+  .coin-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+  .coin-sym  { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text1); }
+  .coin-name { font-size: 10px; color: var(--text3); margin-top: 1px; }
+  .coin-change { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; }
+  .coin-change.up { background: var(--green-bg); color: var(--green); }
+  .coin-change.dn { background: var(--red-bg);   color: var(--red); }
+  .coin-price { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--text1); margin-bottom: 3px; }
+  .coin-meta  { font-size: 10px; color: var(--text3); display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Bars */
+  .bars-section { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
+  .bar-row { display: flex; align-items: center; gap: 5px; }
+  .bar-label { font-family: var(--font-mono); font-size: 9px; color: var(--text3); width: 32px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; position: relative; }
+  .bar-fill  { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .bar-val   { font-family: var(--font-mono); font-size: 9px; color: var(--text2); width: 28px; text-align: right; flex-shrink: 0; }
+
+  /* Score bar */
+  .score-row { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+  .score-track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; position: relative; }
+  .score-fill-neg { position: absolute; right: 50%; height: 100%; border-radius: 2px; background: var(--red); }
+  .score-fill-pos { position: absolute; left: 50%; height: 100%; border-radius: 2px; background: var(--green); }
+  .score-center { position: absolute; left: 50%; top: -1px; width: 1px; height: 5px; background: var(--border2); }
+  .score-label { font-family: var(--font-mono); font-size: 9px; color: var(--text3); width: 36px; flex-shrink: 0; }
+  .score-val { font-family: var(--font-mono); font-size: 9px; width: 22px; text-align: right; flex-shrink: 0; }
+
+  /* Signal Badge */
+  .signal-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 3px; margin-top: 7px; letter-spacing: 0.5px; }
+  .signal-badge.strong-buy  { background: var(--green); color: #000; }
+  .signal-badge.buy         { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-dim); }
+  .signal-badge.sell        { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-dim); }
+  .signal-badge.strong-sell { background: var(--red);      color: #fff; }
+  .signal-badge.hold        { background: var(--orange-bg);color: var(--orange);border: 1px solid rgba(245,166,35,.4); }
+
+  /* Indicator tags */
+  .coin-indicators { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
+  .ind-tag { font-size: 10px; font-family: var(--font-mono); padding: 1px 5px; border-radius: 2px; }
+  .ind-tag.green  { background: var(--green-bg); color: var(--green);  border: 0.5px solid var(--green-dim); }
+  .ind-tag.red    { background: var(--red-bg);   color: var(--red);    border: 0.5px solid var(--red-dim); }
+  .ind-tag.orange { background: var(--orange-bg);color: var(--orange); border: 0.5px solid rgba(245,166,35,.4); }
+  .ind-tag.blue   { background: var(--blue-bg);  color: var(--blue);   border: 0.5px solid rgba(77,143,245,.3); }
+
+  /* Mini chart */
+  .mini-chart { height: 32px; width: 100%; margin-top: 6px; }
+
+  /* Skeleton */
+  .sk { background: var(--border); border-radius: 3px; animation: shimmer 1.5s ease infinite; }
+  .skeleton-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; }
+  @keyframes shimmer { 0%,100%{opacity:.3} 50%{opacity:.6} }
+
+  /* Analysis + Sidebar */
+  .analysis-wrap { display: grid; grid-template-columns: 1fr 280px; gap: 10px; margin-bottom: 1.25rem; }
+  @media(max-width:900px){ .analysis-wrap { grid-template-columns: 1fr; } }
+
+  .analysis-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .analysis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .analysis-title { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text1); letter-spacing: 0.5px; }
+  .analysis-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .analyze-btn { font-family: var(--font-mono); font-size: 11px; padding: 5px 14px; border-radius: var(--radius); border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .analyze-btn:hover:not(:disabled) { background: var(--bg3); color: var(--text1); }
+  .analyze-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .analyze-btn.primary { border-color: var(--blue); color: var(--blue); }
+  .analyze-btn.primary:hover:not(:disabled) { background: var(--blue-bg); }
+  .analysis-body { font-size: 12.5px; line-height: 1.75; color: var(--text2); min-height: 60px; }
+  .mode-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .mode-btn { font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: 3px; border: 1px solid var(--border); background: transparent; color: var(--text3); cursor: pointer; transition: all 0.15s; }
+  .mode-btn.active { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+  .streaming-cursor { display: inline-block; width: 7px; height: 13px; background: var(--green); animation: blink 0.7s infinite; vertical-align: text-bottom; margin-left: 2px; border-radius: 1px; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .placeholder { color: var(--text3); font-size: 12px; font-style: italic; }
+
+  /* Sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 8px; }
+  .sidebar-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .sidebar-title { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text2); letter-spacing: 0.5px; margin-bottom: 10px; text-transform: uppercase; }
+  .leader-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 0.5px solid var(--border); }
+  .leader-row:last-child { border-bottom: none; }
+  .lr-sym { font-family: var(--font-mono); font-size: 11px; color: var(--text1); font-weight: 500; }
+  .lr-pct { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+  .lr-sig { font-size: 10px; font-family: var(--font-mono); }
+  .heatmap-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .hm-cell { border-radius: 3px; padding: 5px 3px; text-align: center; cursor: default; }
+  .hm-sym { font-family: var(--font-mono); font-size: 9px; font-weight: 600; }
+  .hm-pct { font-family: var(--font-mono); font-size: 9px; margin-top: 1px; }
+  .pulse-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .pulse-label { font-size: 11px; color: var(--text2); flex: 1; }
+  .pulse-bar { width: 80px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .pulse-fill { height: 100%; border-radius: 2px; }
+  .pulse-val { font-family: var(--font-mono); font-size: 11px; width: 28px; text-align: right; flex-shrink: 0; }
+
+  /* Sentiment row */
+  .sentiment-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .sent-tag { font-family: var(--font-mono); font-size: 10px; padding: 3px 9px; border-radius: 3px; border: 1px solid var(--border); color: var(--text2); background: var(--bg3); }
+  .sent-tag.green  { color: var(--green);  border-color: var(--green-dim); background: var(--green-bg); }
+  .sent-tag.red    { color: var(--red);    border-color: var(--red-dim);   background: var(--red-bg); }
+  .sent-tag.orange { color: var(--orange); background: var(--orange-bg);   border-color: rgba(245,166,35,.4); }
+
+  /* Footer */
+  .footer { font-size: 10px; color: var(--text3); padding-top: 0.75rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Fetching real candle data from Binance...</div>
+  <div class="loading-progress" id="loadingProgress">0 / 10 coins loaded</div>
+</div>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="live-dot"></div>
+      <div>
+        <div class="title">BINANCE · LIVE AI SIGNALS v3</div>
+        <div class="subtitle">Real RSI · Real MACD · Real BB · Real EMA — Synced with Python bot</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="sync-badge">⚡ SYNCED WITH BOT</span>
+      <div class="last-update" id="lastUpdate">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Market Bar -->
+  <div class="market-bar" id="marketBar">
+    <div class="mbar-pill sk" style="width:90px;height:22px;"></div>
+    <div class="mbar-pill sk" style="width:110px;height:22px;"></div>
+    <div class="mbar-pill sk" style="width:80px;height:22px;"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="filter-btn active" onclick="setFilter('all',this,'')">All (28)</button>
+    <button class="filter-btn" onclick="setFilter('buy',this,'buy-active')">🟢 Buy</button>
+    <button class="filter-btn" onclick="setFilter('sell',this,'sell-active')">🔴 Sell</button>
+    <button class="filter-btn" onclick="setFilter('hold',this,'')">Hold</button>
+    <button class="filter-btn" onclick="setFilter('strong',this,'buy-active')">🚀 Strong</button>
+    <div class="sep"></div>
+    <button class="filter-btn" onclick="setFilter('up',this,'')">↑ Gainers</button>
+    <button class="filter-btn" onclick="setFilter('dn',this,'')">↓ Losers</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAllCoins()">↻ Refresh</button>
+  </div>
+
+  <!-- Coin Grid -->
+  <div class="coin-grid" id="coinGrid">
+    <div class="skeleton-card"><div class="sk" style="height:12px;width:55%;margin-bottom:7px"></div><div class="sk" style="height:18px;width:75%;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%"></div></div>
+    <div class="skeleton-card"><div class="sk" style="height:12px;width:55%;margin-bottom:7px"></div><div class="sk" style="height:18px;width:75%;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%"></div></div>
+    <div class="skeleton-card"><div class="sk" style="height:12px;width:55%;margin-bottom:7px"></div><div class="sk" style="height:18px;width:75%;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%"></div></div>
+    <div class="skeleton-card"><div class="sk" style="height:12px;width:55%;margin-bottom:7px"></div><div class="sk" style="height:18px;width:75%;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%"></div></div>
+    <div class="skeleton-card"><div class="sk" style="height:12px;width:55%;margin-bottom:7px"></div><div class="sk" style="height:18px;width:75%;margin-bottom:6px"></div><div class="sk" style="height:10px;width:40%"></div></div>
+  </div>
+
+  <!-- Analysis + Sidebar -->
+  <div class="analysis-wrap">
+    <div class="analysis-panel">
+      <div class="analysis-header">
+        <div class="analysis-title" id="analysisTitle">⚡ AI SIGNAL ANALYSIS</div>
+        <div class="analysis-actions">
+          <button class="analyze-btn" id="analyzeBtn2" onclick="runAnalysis('quick')">Quick Signals</button>
+          <button class="analyze-btn primary" id="analyzeBtn" onclick="runAnalysis('deep')">Deep Analysis ↗</button>
+        </div>
+      </div>
+      <div class="mode-row">
+        <button class="mode-btn active" onclick="setMode('signals',this)">Signals</button>
+        <button class="mode-btn" onclick="setMode('macro',this)">Macro View</button>
+        <button class="mode-btn" onclick="setMode('risk',this)">Risk Assessment</button>
+        <button class="mode-btn" onclick="setMode('portfolio',this)">Portfolio</button>
+      </div>
+      <div class="analysis-body" id="analysisBody">
+        <span class="placeholder">Select coins above then click "Deep Analysis" — uses same real RSI/MACD/BB/EMA logic as your Python bot. Results will match.</span>
+      </div>
+      <div class="sentiment-row" id="sentimentRow"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">📊 Signal Board</div>
+        <div id="leaderboard"></div>
+      </div>
+      <div class="sidebar-card">
+        <div class="sidebar-title">🗺 Market Heatmap</div>
+        <div class="heatmap-grid" id="heatmap"></div>
+      </div>
+      <div class="sidebar-card">
+        <div class="sidebar-title">💓 Market Pulse</div>
+        <div id="marketPulse"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>DATA: Binance Klines API (100 candles, 1h) · TA: Real RSI/MACD/BB/EMA/ATR/Volume — identical to Python bot · AI: Claude</span>
+    <span>⚠️ Not financial advice — DYOR</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  COIN LIST — same as Python bot watchlist
+// ═══════════════════════════════════════════════════════════
+const COINS = [
+  // Original 10
+  {s:'BTCUSDT',   n:'Bitcoin',        sym:'BTC',  },
+  {s:'ETHUSDT',   n:'Ethereum',       sym:'ETH',  },
+  {s:'BNBUSDT',   n:'BNB',            sym:'BNB',  },
+  {s:'SOLUSDT',   n:'Solana',         sym:'SOL',  },
+  {s:'ADAUSDT',   n:'Cardano',        sym:'ADA',  },
+  {s:'XRPUSDT',   n:'XRP',            sym:'XRP',  },
+  {s:'DOTUSDT',   n:'Polkadot',       sym:'DOT',  },
+  {s:'LINKUSDT',  n:'Chainlink',      sym:'LINK', },
+  {s:'MATICUSDT', n:'Polygon',        sym:'MATIC',},
+  {s:'AVAXUSDT',  n:'Avalanche',      sym:'AVAX', },
+  // Layer 1 / Infrastructure
+  {s:'NEARUSDT',  n:'NEAR Protocol',  sym:'NEAR', },
+  {s:'APTUSDT',   n:'Aptos',          sym:'APT',  },
+  {s:'SUIUSDT',   n:'Sui',            sym:'SUI',  },
+  {s:'ALGOUSDT',  n:'Algorand',       sym:'ALGO', },
+  {s:'ATOMUSDT',  n:'Cosmos',         sym:'ATOM', },
+  {s:'FTMUSDT',   n:'Fantom',         sym:'FTM',  },
+  {s:'TRXUSDT',   n:'TRON',           sym:'TRX',  },
+  {s:'LTCUSDT',   n:'Litecoin',       sym:'LTC',  },
+  // Layer 2
+  {s:'ARBUSDT',   n:'Arbitrum',       sym:'ARB',  },
+  {s:'OPUSDT',    n:'Optimism',       sym:'OP',   },
+  // DeFi / Utility
+  {s:'UNIUSDT',   n:'Uniswap',        sym:'UNI',  },
+  {s:'CRVUSDT',   n:'Curve',          sym:'CRV',  },
+  {s:'INJUSDT',   n:'Injective',      sym:'INJ',  },
+  {s:'STXUSDT',   n:'Stacks',         sym:'STX',  },
+  {s:'RUNEUSDT',  n:'THORChain',      sym:'RUNE', },
+  {s:'RENDERUSDT',n:'Render',         sym:'RNDR', },
+  {s:'FETUSDT',   n:'Fetch.ai',       sym:'FET',  },
+  {s:'WLDUSDT',   n:'Worldcoin',      sym:'WLD',  },
+];
+
+// State
+let coinData      = {};   // symbol -> { price, pct, high, low, vol, analysis }
+let selectedCoins = new Set(['BTCUSDT','ETHUSDT','SOLUSDT']);
+let filterMode    = 'all';
+let analysisMode  = 'signals';
+let fearGreed     = { value: 50, label: 'Neutral' };
+let btcDom        = 50.0;
+
+// ═══════════════════════════════════════════════════════════
+//  EXACT PYTHON BOT TA FUNCTIONS — ported 1:1
+// ═══════════════════════════════════════════════════════════
+
+function calcRSI(closes, period = 14) {
+  const slice = closes.slice(-(period + 1));
+  const deltas = [];
+  for (let i = 1; i < slice.length; i++) deltas.push(slice[i] - slice[i-1]);
+  const gains  = deltas.map(d => d > 0 ? d : 0);
+  const losses = deltas.map(d => d < 0 ? -d : 0);
+  const avgGain = gains.slice(0, period).reduce((a,b) => a+b, 0) / period;
+  const avgLoss = losses.slice(0, period).reduce((a,b) => a+b, 0) / period;
+  if (avgLoss === 0) return 100.0;
+  const rs = avgGain / avgLoss;
+  return parseFloat((100 - (100 / (1 + rs))).toFixed(2));
+}
+
+function calcEMA(closes, period) {
+  const k = 2 / (period + 1);
+  let ema = closes[0];
+  for (let i = 1; i < closes.length; i++) ema = closes[i] * k + ema * (1 - k);
+  return parseFloat(ema.toFixed(6));
+}
+
+function calcMACD(closes) {
+  const ema12 = calcEMA(closes, 12);
+  const ema26 = calcEMA(closes, 26);
+  const macdLine = ema12 - ema26;
+  // Signal line: EMA9 of MACD series
+  const macdSeries = [];
+  for (let i = 9; i < closes.length; i++) {
+    const e12 = calcEMA(closes.slice(0, i), 12);
+    const e26 = calcEMA(closes.slice(0, i), 26);
+    macdSeries.push(e12 - e26);
+  }
+  const signalLine = macdSeries.length >= 9 ? calcEMA(macdSeries, 9) : macdLine;
+  const histogram  = macdLine - signalLine;
+  return {
+    macdLine:   parseFloat(macdLine.toFixed(6)),
+    signalLine: parseFloat(signalLine.toFixed(6)),
+    histogram:  parseFloat(histogram.toFixed(6)),
+  };
+}
+
+function calcBollingerBands(closes, period = 20) {
+  const slice = closes.slice(-period);
+  const sma = slice.reduce((a,b) => a+b, 0) / slice.length;
+  const variance = slice.reduce((a,b) => a + Math.pow(b - sma, 2), 0) / slice.length;
+  const std = Math.sqrt(variance);
+  return {
+    upper: parseFloat((sma + 2 * std).toFixed(6)),
+    mid:   parseFloat(sma.toFixed(6)),
+    lower: parseFloat((sma - 2 * std).toFixed(6)),
+  };
+}
+
+function calcATR(highs, lows, closes, period = 14) {
+  const trs = [];
+  for (let i = 1; i < closes.length; i++) {
+    const tr = Math.max(
+      highs[i] - lows[i],
+      Math.abs(highs[i] - closes[i-1]),
+      Math.abs(lows[i]  - closes[i-1])
+    );
+    trs.push(tr);
+  }
+  const slice = trs.slice(-period);
+  return parseFloat((slice.reduce((a,b) => a+b, 0) / slice.length).toFixed(6));
+}
+
+function calcVolumeSignal(volumes) {
+  const avg  = volumes.slice(-20, -1).reduce((a,b) => a+b, 0) / 19;
+  const curr = volumes[volumes.length - 1];
+  const ratio = avg > 0 ? curr / avg : 1;
+  if (ratio > 1.5) return 'HIGH';
+  if (ratio > 1.0) return 'NORMAL';
+  return 'LOW';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MAIN ANALYZE COIN — identical scoring to Python bot
+// ═══════════════════════════════════════════════════════════
+function analyzeCoin(symbol, klines) {
+  const closes  = klines.map(k => parseFloat(k[4]));
+  const highs   = klines.map(k => parseFloat(k[2]));
+  const lows    = klines.map(k => parseFloat(k[3]));
+  const volumes = klines.map(k => parseFloat(k[5]));
+  const currentPrice = closes[closes.length - 1];
+
+  let score = 0;
+  const reasons = [];
+
+  // ── RSI ──────────────────────────────────────────────────
+  const rsi = calcRSI(closes);
+  if      (rsi < 30) { score += 3; reasons.push({label:`RSI Oversold (${rsi})`,  type:'green'}); }
+  else if (rsi < 45) { score += 1; reasons.push({label:`RSI Low (${rsi})`,       type:'green'}); }
+  else if (rsi > 70) { score -= 3; reasons.push({label:`RSI Overbought (${rsi})`,type:'red'}); }
+  else if (rsi > 60) { score -= 1; reasons.push({label:`RSI High (${rsi})`,      type:'orange'}); }
+  else               {             reasons.push({label:`RSI Neutral (${rsi})`,   type:'blue'}); }
+
+  // ── MACD ─────────────────────────────────────────────────
+  const { macdLine, signalLine, histogram } = calcMACD(closes);
+  if      (macdLine > signalLine && histogram > 0) { score += 2; reasons.push({label:'MACD Bullish Cross', type:'green'}); }
+  else if (macdLine < signalLine && histogram < 0) { score -= 2; reasons.push({label:'MACD Bearish Cross', type:'red'}); }
+  else                                              {             reasons.push({label:'MACD Neutral',       type:'blue'}); }
+
+  // ── Bollinger Bands ───────────────────────────────────────
+  const { upper: bbUpper, mid: bbMid, lower: bbLower } = calcBollingerBands(closes);
+  let bbPos = 'INSIDE';
+  if      (currentPrice < bbLower) { score += 2; bbPos = 'BELOW'; reasons.push({label:'Below BB Lower',   type:'green'}); }
+  else if (currentPrice > bbUpper) { score -= 2; bbPos = 'ABOVE'; reasons.push({label:'Above BB Upper',   type:'red'}); }
+  else if (currentPrice < bbMid)   { score += 1;                   reasons.push({label:'Below BB Mid',    type:'green'}); }
+
+  // ── EMA Trend ─────────────────────────────────────────────
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = calcEMA(closes, 50);
+  let emaTrend = 'DOWN';
+  if      (currentPrice > ema20 && ema20 > ema50) { score += 2; emaTrend = 'UP';   reasons.push({label:'Strong Uptrend EMA',   type:'green'}); }
+  else if (currentPrice < ema20 && ema20 < ema50) { score -= 2; emaTrend = 'DOWN'; reasons.push({label:'Strong Downtrend EMA', type:'red'}); }
+  else if (currentPrice > ema50)                   { score += 1; emaTrend = 'MID';  reasons.push({label:'Above EMA50',          type:'green'}); }
+
+  // ── Volume ───────────────────────────────────────────────
+  const volSignal = calcVolumeSignal(volumes);
+  if      (volSignal === 'HIGH' && score > 0) { score += 1; reasons.push({label:'High Vol Bull', type:'green'}); }
+  else if (volSignal === 'HIGH' && score < 0) { score -= 1; reasons.push({label:'High Vol Bear', type:'red'}); }
+  else if (volSignal === 'LOW')               { score -= 1; reasons.push({label:'Low Volume',    type:'orange'}); }
+
+  // ── Fear & Greed ─────────────────────────────────────────
+  const fg = fearGreed.value;
+  if      (fg < 25) { score += 2; reasons.push({label:`Extreme Fear (${fg})`, type:'green'}); }
+  else if (fg < 40) { score += 1; reasons.push({label:`Fear (${fg})`,         type:'green'}); }
+  else if (fg > 75) { score -= 2; reasons.push({label:`Extreme Greed (${fg})`,type:'red'}); }
+  else if (fg > 60) { score -= 1; reasons.push({label:`Greed (${fg})`,        type:'orange'}); }
+
+  // ── BTC Dominance ────────────────────────────────────────
+  if (symbol !== 'BTCUSDT') {
+    if      (btcDom > 60) { score -= 1; reasons.push({label:`BTC Dom High (${btcDom}%)`, type:'orange'}); }
+    else if (btcDom < 45) { score += 1; reasons.push({label:`Alt Season (${btcDom}%)`,   type:'green'}); }
+  }
+
+  // ── ATR Volatility ───────────────────────────────────────
+  const atr    = calcATR(highs, lows, closes);
+  const atrPct = parseFloat(((atr / currentPrice) * 100).toFixed(2));
+  if (atrPct > 5) { score -= 1; reasons.push({label:`High ATR (${atrPct}%)`, type:'orange'}); }
+
+  // ── Signal ───────────────────────────────────────────────
+  let signal;
+  if      (score >= 6)  signal = 'STRONG_BUY';
+  else if (score >= 3)  signal = 'BUY';
+  else if (score <= -6) signal = 'STRONG_SELL';
+  else if (score <= -3) signal = 'SELL';
+  else                  signal = 'HOLD';
+
+  return {
+    symbol, price: currentPrice, score, signal, rsi,
+    macdLine, signalLine, histogram,
+    bbPos, bbUpper, bbMid, bbLower,
+    ema20, ema50, emaTrend, volSignal,
+    atrPct, reasons,
+    // 24h data from ticker
+    pct:  coinData[symbol]?.pct  || 0,
+    high: coinData[symbol]?.high || currentPrice,
+    low:  coinData[symbol]?.low  || currentPrice,
+    vol:  coinData[symbol]?.vol  || 0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA FETCHING
+// ═══════════════════════════════════════════════════════════
+
+async function fetchKlines(symbol) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=100`;
+  const res  = await fetch(url);
+  return res.json();
+}
+
+async function fetchFearGreed() {
+  try {
+    const res  = await fetch('https://api.alternative.me/fng/?limit=1');
+    const data = await res.json();
+    fearGreed  = { value: parseInt(data.data[0].value), label: data.data[0].value_classification };
+  } catch { fearGreed = { value: 50, label: 'Neutral' }; }
+}
+
+async function fetch24hrTicker() {
+  try {
+    const syms = COINS.map(c => c.s);
+    const url  = `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(syms)}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    data.forEach(d => {
+      if (!coinData[d.symbol]) coinData[d.symbol] = {};
+      coinData[d.symbol].pct  = parseFloat(d.priceChangePercent);
+      coinData[d.symbol].high = parseFloat(d.highPrice);
+      coinData[d.symbol].low  = parseFloat(d.lowPrice);
+      coinData[d.symbol].vol  = parseFloat(d.quoteVolume);
+    });
+  } catch {}
+}
+
+async function loadAllCoins() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  document.getElementById('loadingProgress').textContent = `0 / ${COINS.length} coins loaded`;
+
+  // Fetch F&G and 24hr in parallel
+  await Promise.all([fetchFearGreed(), fetch24hrTicker()]);
+
+  // Fetch klines one by one (rate limit friendly)
+  let loaded = 0;
+  for (const coin of COINS) {
+    try {
+      const klines = await fetchKlines(coin.s);
+      if (klines.length >= 50) {
+        const analysis = analyzeCoin(coin.s, klines);
+        if (!coinData[coin.s]) coinData[coin.s] = {};
+        coinData[coin.s].analysis = analysis;
+        coinData[coin.s].price    = analysis.price;
+        coinData[coin.s].klines   = klines.slice(-30).map(k => parseFloat(k[4]));
+      }
+    } catch(e) {
+      console.warn(`Failed ${coin.s}:`, e);
+    }
+    loaded++;
+    document.getElementById('loadingProgress').textContent = `${loaded} / ${COINS.length} coins loaded`;
+    await new Promise(r => setTimeout(r, 120)); // small delay between requests
+  }
+
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString() + ' · Real TA';
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh';
+
+  renderCards();
+  renderMarketBar();
+  renderSidebar();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════════
+
+function fmt(n) {
+  if (n >= 10000) return '$' + n.toLocaleString('en-US', {maximumFractionDigits:0});
+  if (n >= 1000)  return '$' + n.toLocaleString('en-US', {maximumFractionDigits:2});
+  if (n >= 1)     return '$' + n.toFixed(3);
+  if (n >= 0.01)  return '$' + n.toFixed(4);
+  return '$' + n.toFixed(7);
+}
+function fmtV(v) {
+  if (v >= 1e9) return (v/1e9).toFixed(2)+'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1)+'M';
+  return (v/1e3).toFixed(0)+'K';
+}
+
+function sigClass(signal) {
+  if (signal==='STRONG_BUY')  return 'strong-buy';
+  if (signal==='BUY')         return 'buy';
+  if (signal==='STRONG_SELL') return 'strong-sell';
+  if (signal==='SELL')        return 'sell';
+  return 'hold';
+}
+function sigLabel(signal) {
+  return signal.replace('_', ' ');
+}
+function sigEmoji(s) {
+  if (s==='STRONG_BUY')  return '🚀';
+  if (s==='BUY')         return '▲';
+  if (s==='STRONG_SELL') return '🔴';
+  if (s==='SELL')        return '▼';
+  return '—';
+}
+function cardBorder(s) {
+  if (s.includes('BUY'))  return 'signal-buy';
+  if (s.includes('SELL')) return 'signal-sell';
+  return 'signal-hold';
+}
+
+function sparkline(el, prices) {
+  if (!prices || prices.length < 2) return;
+  const w=el.clientWidth||160, h=32;
+  const min = Math.min(...prices), max = Math.max(...prices);
+  const sc = v => h - ((v-min)/(max-min+0.001))*(h-4)-2;
+  const pts = prices.map((v,i) => `${(i/(prices.length-1))*w},${sc(v).toFixed(1)}`).join(' ');
+  const pct = ((prices[prices.length-1] - prices[0]) / prices[0]) * 100;
+  const col = pct >= 0 ? '#00d897' : '#ff4d4d';
+  el.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function setFilter(f, btn, extraClass) {
+  filterMode = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active','buy-active','sell-active'));
+  btn.classList.add(extraClass || 'active');
+  renderCards();
+}
+
+function getFilteredCoins() {
+  let coins = [...COINS].filter(c => coinData[c.s]?.analysis);
+  if (filterMode === 'buy')    coins = coins.filter(c => coinData[c.s].analysis.signal.includes('BUY'));
+  if (filterMode === 'sell')   coins = coins.filter(c => coinData[c.s].analysis.signal.includes('SELL'));
+  if (filterMode === 'hold')   coins = coins.filter(c => coinData[c.s].analysis.signal === 'HOLD');
+  if (filterMode === 'strong') coins = coins.filter(c => coinData[c.s].analysis.signal.startsWith('STRONG'));
+  if (filterMode === 'up')     coins = coins.filter(c => (coinData[c.s].pct||0) > 0);
+  if (filterMode === 'dn')     coins = coins.filter(c => (coinData[c.s].pct||0) < 0);
+  return coins;
+}
+
+function renderCards() {
+  const coins = getFilteredCoins();
+  const grid  = document.getElementById('coinGrid');
+
+  if (!coins.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:var(--text3);padding:1rem 0;font-family:var(--font-mono);">No coins match this filter.</div>`;
+    return;
+  }
+
+  grid.innerHTML = coins.map(c => {
+    const d   = coinData[c.s] || {};
+    const a   = d.analysis || {};
+    const pct = d.pct || 0;
+    const sel = selectedCoins.has(c.s) ? 'selected' : '';
+    const sc  = sigClass(a.signal || 'HOLD');
+    const bc  = cardBorder(a.signal || 'HOLD');
+    const em  = sigEmoji(a.signal || 'HOLD');
+
+    const rsi     = a.rsi     || 50;
+    const score   = a.score   || 0;
+    const bbPctVal = a.bbPos === 'ABOVE' ? 100 : a.bbPos === 'BELOW' ? 0 : 50;
+
+    const rsiColor = rsi < 35 ? 'var(--green)' : rsi > 65 ? 'var(--red)' : 'var(--orange)';
+    const bbColor  = a.bbPos === 'BELOW' ? 'var(--green)' : a.bbPos === 'ABOVE' ? 'var(--red)' : 'var(--blue)';
+
+    const scorePct  = Math.min(50, Math.abs(score) / 10 * 50);
+    const scoreIsPos = score >= 0;
+
+    const pills = (a.reasons || []).slice(0,3).map(r =>
+      `<span class="ind-tag ${r.type}">${r.label}</span>`
+    ).join('');
+
+    const macdLabel = a.macdLine > a.signalLine ? 'MACD Bull' : a.macdLine < a.signalLine ? 'MACD Bear' : 'MACD Neutral';
+    const macdType  = a.macdLine > a.signalLine ? 'green' : a.macdLine < a.signalLine ? 'red' : 'blue';
+
+    return `<div class="coin-card ${sel} ${bc}" onclick="toggleCoin('${c.s}',this)" id="card-${c.s}">
+      <div class="coin-header">
+        <div>
+          <div class="coin-sym">${c.sym}</div>
+          <div class="coin-name">${c.n}</div>
+        </div>
+        <span class="coin-change ${pct>=0?'up':'dn'}">${pct>=0?'+':''}${pct.toFixed(2)}%</span>
+      </div>
+      <div class="coin-price">${a.price ? fmt(a.price) : '—'}</div>
+      <div class="coin-meta">
+        <span>Vol: ${d.vol?fmtV(d.vol):'—'}</span>
+        <span>ATR: ${a.atrPct||0}%</span>
+        <span>EMA: ${a.emaTrend||'—'}</span>
+      </div>
+
+      <div class="bars-section">
+        <div class="bar-row">
+          <span class="bar-label">RSI</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${rsi}%;background:${rsiColor}"></div></div>
+          <span class="bar-val" style="color:${rsiColor}">${rsi}</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">BB%</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${bbPctVal}%;background:${bbColor}"></div></div>
+          <span class="bar-val" style="color:${bbColor}">${a.bbPos||'—'}</span>
+        </div>
+      </div>
+
+      <div class="score-row">
+        <span class="score-label">Score</span>
+        <div class="score-track">
+          ${scoreIsPos
+            ? `<div class="score-fill-pos" style="width:${scorePct}%"></div>`
+            : `<div class="score-fill-neg" style="width:${scorePct}%"></div>`}
+          <div class="score-center"></div>
+        </div>
+        <span class="score-val" style="color:${scoreIsPos?'var(--green)':'var(--red)'}">${score>0?'+':''}${score}</span>
+      </div>
+
+      <span class="signal-badge ${sc}">${em} ${sigLabel(a.signal||'HOLD')}</span>
+
+      <div class="coin-indicators">
+        ${pills}
+        <span class="ind-tag ${macdType}">${macdLabel}</span>
+        <span class="ind-tag blue">Vol: ${a.volSignal||'—'}</span>
+      </div>
+
+      <div class="mini-chart" id="spark-${c.s}"></div>
+    </div>`;
+  }).join('');
+
+  setTimeout(() => {
+    coins.forEach(c => {
+      const el = document.getElementById('spark-'+c.s);
+      if (el && coinData[c.s]?.klines) sparkline(el, coinData[c.s].klines);
+    });
+  }, 50);
+}
+
+function renderMarketBar() {
+  const all   = COINS.filter(c => coinData[c.s]?.analysis);
+  const buys  = all.filter(c => coinData[c.s].analysis.signal.includes('BUY')).length;
+  const sells = all.filter(c => coinData[c.s].analysis.signal.includes('SELL')).length;
+  const sbuy  = all.filter(c => coinData[c.s].analysis.signal === 'STRONG_BUY').length;
+  const upC   = all.filter(c => (coinData[c.s].pct||0) > 0).length;
+  const avgS  = all.length ? (all.reduce((a,c) => a+coinData[c.s].analysis.score, 0) / all.length).toFixed(1) : 0;
+  const sent  = buys > sells ? 'BULLISH' : sells > buys ? 'BEARISH' : 'NEUTRAL';
+  const sentC = buys > sells ? 'green'   : sells > buys ? 'red'     : 'orange';
+
+  document.getElementById('marketBar').innerHTML = [
+    `<div class="mbar-pill ${sentC}">⬤ ${sent}</div>`,
+    `<div class="mbar-pill green">🚀 S.Buy: ${sbuy}</div>`,
+    `<div class="mbar-pill green">▲ Buy: ${buys}</div>`,
+    `<div class="mbar-pill red">▼ Sell: ${sells}</div>`,
+    `<div class="mbar-pill blue">↑ Gainers: ${upC}/${all.length}</div>`,
+    `<div class="mbar-pill ${parseFloat(avgS)>=0?'green':'red'}">Avg Score: ${avgS>0?'+':''}${avgS}</div>`,
+    `<div class="mbar-pill orange">F&G: ${fearGreed.value} (${fearGreed.label})</div>`,
+    `<div class="mbar-pill blue">BTC Dom: ${btcDom}%</div>`,
+  ].join('');
+}
+
+function renderSidebar() {
+  const all = COINS.filter(c => coinData[c.s]?.analysis)
+    .map(c => ({...c, a: coinData[c.s].analysis}))
+    .sort((a,b) => b.a.score - a.a.score);
+
+  // Leaderboard — top 3 and bottom 3
+  const top = [...all.slice(0,3), ...all.slice(-3).reverse()];
+  document.getElementById('leaderboard').innerHTML = top.map(c => {
+    const pct = coinData[c.s]?.pct || 0;
+    const col = c.a.score>=2?'var(--green)':c.a.score<=-2?'var(--red)':'var(--orange)';
+    return `<div class="leader-row">
+      <span class="lr-sym">${c.sym}</span>
+      <span class="lr-sig" style="color:${col}">${sigEmoji(c.a.signal)} ${sigLabel(c.a.signal)}</span>
+      <span class="lr-pct" style="color:${pct>=0?'var(--green)':'var(--red)'}">${pct>=0?'+':''}${pct.toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+
+  // Heatmap
+  document.getElementById('heatmap').innerHTML = all.map(c => {
+    const pct = coinData[c.s]?.pct || 0;
+    const intensity = Math.min(1, Math.abs(pct)/10);
+    const bg  = pct>=0 ? `rgba(0,216,151,${0.1+intensity*0.5})` : `rgba(255,77,77,${0.1+intensity*0.5})`;
+    const col = pct>=0 ? '#00d897' : '#ff4d4d';
+    return `<div class="hm-cell" style="background:${bg}" title="${c.n}: ${pct.toFixed(2)}%">
+      <div class="hm-sym" style="color:${col}">${c.sym}</div>
+      <div class="hm-pct" style="color:${col}">${pct>=0?'+':''}${pct.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+
+  // Market Pulse
+  const buys  = all.filter(c=>c.a.signal.includes('BUY')).length;
+  const sells = all.filter(c=>c.a.signal.includes('SELL')).length;
+  const upC   = all.filter(c=>(coinData[c.s]?.pct||0)>0).length;
+  const avgPct = all.length ? (all.reduce((a,c)=>a+(coinData[c.s]?.pct||0),0)/all.length) : 0;
+
+  document.getElementById('marketPulse').innerHTML = [
+    {label:'Bull/Bear',     val:`${buys}/${sells}`, fill: buys/(buys+sells+0.01)*100, col:'var(--green)'},
+    {label:'Gainers',       val:`${upC}/${all.length}`, fill: upC/all.length*100, col:'var(--green)'},
+    {label:'Avg 24h',       val:`${avgPct>=0?'+':''}${avgPct.toFixed(2)}%`, fill: Math.min(100,50+avgPct*5), col: avgPct>=0?'var(--green)':'var(--red)'},
+    {label:'Fear & Greed',  val:`${fearGreed.value}`, fill: fearGreed.value, col: fearGreed.value<40?'var(--green)':fearGreed.value>60?'var(--red)':'var(--orange)'},
+  ].map(r => `<div class="pulse-row">
+    <span class="pulse-label">${r.label}</span>
+    <div class="pulse-bar"><div class="pulse-fill" style="width:${r.fill.toFixed(0)}%;background:${r.col}"></div></div>
+    <span class="pulse-val" style="color:${r.col}">${r.val}</span>
+  </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ANALYSIS MODE & AI
+// ═══════════════════════════════════════════════════════════
+
+function setMode(m, btn) {
+  analysisMode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleCoin(sym, el) {
+  if (selectedCoins.has(sym)) { selectedCoins.delete(sym); el.classList.remove('selected'); }
+  else { selectedCoins.add(sym); el.classList.add('selected'); }
+}
+
+async function runAnalysis(depth) {
+  const btn  = document.getElementById(depth==='deep'?'analyzeBtn':'analyzeBtn2');
+  const body = document.getElementById('analysisBody');
+  const title= document.getElementById('analysisTitle');
+  const sent = document.getElementById('sentimentRow');
+
+  const selected = COINS.filter(c => selectedCoins.has(c.s) && coinData[c.s]?.analysis);
+  if (!selected.length) {
+    body.innerHTML = '<span style="color:var(--red);font-family:var(--font-mono);font-size:11px;">Select at least one coin card first.</span>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  sent.innerHTML = '';
+
+  const coinSummaries = selected.map(c => {
+    const a = coinData[c.s].analysis;
+    return `${c.sym} (${c.n}):
+  Price: ${fmt(a.price)} | 24h: ${(coinData[c.s].pct||0).toFixed(2)}%
+  Score: ${a.score} | Signal: ${sigLabel(a.signal)}
+  RSI: ${a.rsi} | MACD: ${a.macdLine > a.signalLine ? 'Bullish' : 'Bearish'} (${a.macdLine.toFixed(4)} vs ${a.signalLine.toFixed(4)})
+  BB Position: ${a.bbPos} | EMA Trend: ${a.emaTrend} (EMA20:${fmt(a.ema20)} EMA50:${fmt(a.ema50)})
+  Volume: ${a.volSignal} | ATR: ${a.atrPct}%
+  Reasons: ${a.reasons.map(r=>r.label).join(', ')}`;
+  }).join('\n\n');
+
+  const allSnap = COINS.filter(c=>coinData[c.s]?.analysis).map(c => {
+    const a = coinData[c.s].analysis;
+    return `${c.sym}: Score ${a.score>0?'+':''}${a.score} | RSI ${a.rsi} | ${sigLabel(a.signal)} | MACD ${a.macdLine>a.signalLine?'Bull':'Bear'}`;
+  }).join('\n');
+
+  const buys  = COINS.filter(c=>coinData[c.s]?.analysis?.signal.includes('BUY')).length;
+  const sells = COINS.filter(c=>coinData[c.s]?.analysis?.signal.includes('SELL')).length;
+
+  const modePrompts = {
+    signals: `For EACH selected coin provide:
+1. Signal: STRONG BUY / BUY / HOLD / SELL / STRONG SELL
+2. Reasoning: 2-3 specific reasons (real RSI, BB, MACD, EMA)
+3. Entry Zone, Target 1 (24h), Target 2 (72h), Stop Loss, Risk/Reward
+4. Risk Level: Low/Medium/High`,
+    macro: `Provide macro analysis: market structure, sector rotation, correlation, volume analysis, 24-48h outlook with confidence %.`,
+    risk: `Risk report: market risk score 1-10, stop-loss recommendations per coin, risk mitigation steps.`,
+    portfolio: `Portfolio: $10,000 allocation across selected coins, exact $ splits, rationale, expected return scenarios.`,
+  };
+
+  const prompt = depth === 'quick'
+    ? `Crypto TA expert. Quick signal analysis. For each: SYMBOL | SIGNAL | Key reason | Entry | Target | SL\n\n${coinSummaries}\n\nThen 1 line overall sentiment. Be specific. No disclaimers.`
+    : `Expert crypto technical analyst. All data is REAL from Binance klines (100 candles, 1h), same engine as a Python trading bot.
+
+SELECTED COINS:
+${coinSummaries}
+
+FULL WATCHLIST SNAPSHOT:
+${allSnap}
+
+MARKET CONTEXT: Buy signals: ${buys} | Sell signals: ${sells} | F&G: ${fearGreed.value} (${fearGreed.label}) | BTC Dom: ${btcDom}%
+
+${modePrompts[analysisMode]}
+
+Format with headers. Be specific with price levels. No disclaimers.`;
+
+  body.innerHTML = '<span style="color:var(--text3);font-family:var(--font-mono);font-size:11px;">Claude is analyzing real TA data</span><span class="streaming-cursor"></span>';
+  title.textContent = `⚡ AI ANALYSIS — ${selected.map(c=>c.sym).join(', ')}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: depth==='deep' ? 2000 : 600,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText  = '';
+    body.innerHTML = '<span class="streaming-cursor"></span>';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '));
+      for (const line of lines) {
+        const json = line.slice(6);
+        if (json === '[DONE]') continue;
+        try {
+          const p = JSON.parse(json);
+          if (p.type === 'content_block_delta' && p.delta?.text) {
+            fullText += p.delta.text;
+            body.innerHTML = fmtAnalysis(fullText) + '<span class="streaming-cursor"></span>';
+          }
+        } catch {}
+      }
+    }
+
+    body.innerHTML = fmtAnalysis(fullText);
+
+    // Sentiment tags
+    const sbuy  = COINS.filter(c=>coinData[c.s]?.analysis?.signal==='STRONG_BUY').length;
+    const ssell = COINS.filter(c=>coinData[c.s]?.analysis?.signal==='STRONG_SELL').length;
+    sent.innerHTML = [
+      `<span class="sent-tag ${buys>sells?'green':sells>buys?'red':''}">${buys>sells?'🟢 Bullish':sells>buys?'🔴 Bearish':'⚪ Neutral'}</span>`,
+      `<span class="sent-tag green">🚀 Strong Buy: ${sbuy}</span>`,
+      `<span class="sent-tag green">▲ Buy: ${buys}</span>`,
+      `<span class="sent-tag red">▼ Sell: ${sells}</span>`,
+      `<span class="sent-tag red">🔴 Strong Sell: ${ssell}</span>`,
+      `<span class="sent-tag orange">F&G: ${fearGreed.value} (${fearGreed.label})</span>`,
+    ].join('');
+
+  } catch(e) {
+    body.innerHTML = `<span style="color:var(--red);font-family:var(--font-mono);font-size:11px;">API error: ${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = depth==='deep' ? 'Deep Analysis ↗' : 'Quick Signals';
+}
+
+function fmtAnalysis(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text1)">$1</strong>')
+    .replace(/^### (.+)$/gm, '<div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text1);margin:14px 0 5px;">$1</div>')
+    .replace(/^## (.+)$/gm,  '<div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text1);margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)">$1</div>')
+    .replace(/^# (.+)$/gm,   '<div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--green);margin:16px 0 6px;">$1</div>')
+    .replace(/STRONG BUY/g,  '<span style="font-family:var(--font-mono);color:#000;background:var(--green);font-weight:700;padding:1px 6px;border-radius:2px;">🚀 STRONG BUY</span>')
+    .replace(/STRONG SELL/g, '<span style="font-family:var(--font-mono);color:#fff;background:var(--red);font-weight:700;padding:1px 6px;border-radius:2px;">🔴 STRONG SELL</span>')
+    .replace(/\bBUY\b/g,     '<span style="font-family:var(--font-mono);color:var(--green);font-weight:600;">▲ BUY</span>')
+    .replace(/\bSELL\b/g,    '<span style="font-family:var(--font-mono);color:var(--red);font-weight:600;">▼ SELL</span>')
+    .replace(/\bHOLD\b/g,    '<span style="font-family:var(--font-mono);color:var(--orange);font-weight:600;">— HOLD</span>')
+    .replace(/\n/g, '<br>');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT — auto refresh every 15 min (same as bot cycle)
+// ═══════════════════════════════════════════════════════════
+loadAllCoins();
+setInterval(loadAllCoins, 15 * 60 * 1000); // 15 min = same as bot's ANALYSIS_INTERVAL_MIN
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# API Keys and Sensitive Config
+config.py
+config2.py
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs and Data
+*.log
+*.txt
+*.json
+!requirements.txt
+!package.json
+!package-lock.json
+
+# Node modules
+node_modules/
+dist/
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
